@@ -88,7 +88,7 @@ fn save_to_stream_and_load_var_store() {
 #[test]
 fn save_and_load_from_stream_var_store() {
     let filename =
-        std::env::temp_dir().join(format!("tch-vs-load-stream-complete-{}", std::process::id()));
+        std::env::temp_dir().join(format!("tch-vs-load-stream-complete2-{}", std::process::id()));
     let add = |vs: &tch::nn::Path| {
         let v = vs.sub("a").sub("b").ones("t2", &[3]);
         let u = vs.zeros("t1", &[4]);
@@ -436,7 +436,7 @@ fn path_half_precision_conversion() {
 
 #[test]
 fn path_free_type_conversion() {
-    let vs = VarStore::new(Device::Cpu);
+    let mut vs = VarStore::new(Device::Cpu);
 
     // Define a VarStore with 3 variables. 2 of them are in a sub-path named "convert" and
     // will be cast to half-precision. The other variables in the VarStore will be unaffected
@@ -448,6 +448,9 @@ fn path_free_type_conversion() {
     assert_eq!(vs.root().sub("convert").sub("group_1").get("ones").unwrap().kind(), Kind::Float);
     assert_eq!(vs.root().sub("convert").sub("group_2").get("zeros").unwrap().kind(), Kind::Float);
 
+    // Disable gradient tracking as this would raise an error when converting to a
+    // non-float type like bool.
+    vs.freeze();
     vs.root().sub("convert").set_kind(Kind::Bool);
 
     assert_eq!(vs.root().sub("ignore").get("zeros").unwrap().kind(), Kind::Float);
@@ -455,6 +458,7 @@ fn path_free_type_conversion() {
     assert_eq!(vs.root().sub("convert").sub("group_2").get("zeros").unwrap().kind(), Kind::Bool);
 
     vs.root().sub("convert").set_kind(Kind::Float);
+    vs.unfreeze();
 
     assert_eq!(vs.root().sub("ignore").get("zeros").unwrap().kind(), Kind::Float);
     assert_eq!(vs.root().sub("convert").sub("group_1").get("ones").unwrap().kind(), Kind::Float);
